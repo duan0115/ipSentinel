@@ -15,7 +15,7 @@ export default {
       pageTitle: env.TITLE || "IP SENTINEL | DollSenior",
       
       // GitHub 仓库链接 (默认使用你提供的链接)
-      githubRepo: env.GITHUB || "https://github.com/wanouxuezhang/ipip",
+      githubRepo: env.GITHUB || "https://github.com/wanouxuezhang/ipSentinel",
       
       // 英文名称 (显示在副标题)
       ownerName: env.NAME || "DollSenior",
