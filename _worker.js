@@ -9,13 +9,13 @@ export default {
     
     // === 1. 从 Cloudflare 环境变量读取配置 ===
     const config = {
-      pageTitle: env.TITLE || "IP SENTINEL | DollSenior",
+      pageTitle: env.TITLE || "IP SENTINEL | Kevin",
       githubRepo: env.GITHUB || "https://github.com/duan0115/ipSentinel",
-      ownerName: env.NAME || "DollSenior",
+      ownerName: env.NAME || "Kevin",
       ownerNameCN: env.NAMECN || "Kevin",
-      ownerShort: env.SHORT || "DollSenior",
+      ownerShort: env.SHORT || "Kevin",
       ownerShortCN: env.SHORTCN || "Kevin",
-      footerText: env.DIBUEN || "IP SENTINEL · DollSenior Edition",
+      footerText: env.DIBUEN || "IP SENTINEL · Kevin",
       footerTextCN: env.DIBUCN || "IP SENTINEL · Kevin"
     };
 
