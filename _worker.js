@@ -10,13 +10,13 @@ export default {
     // === 1. 从 Cloudflare 环境变量读取配置 ===
     const config = {
       pageTitle: env.TITLE || "IP SENTINEL | DollSenior",
-      githubRepo: env.GITHUB || "https://github.com/wanouxuezhang/ipSentinel",
+      githubRepo: env.GITHUB || "https://github.com/duan0115/ipSentinel",
       ownerName: env.NAME || "DollSenior",
-      ownerNameCN: env.NAMECN || "玩偶学长",
+      ownerNameCN: env.NAMECN || "Kevin",
       ownerShort: env.SHORT || "DollSenior",
-      ownerShortCN: env.SHORTCN || "玩偶🧸",
+      ownerShortCN: env.SHORTCN || "Kevin",
       footerText: env.DIBUEN || "IP SENTINEL · DollSenior Edition",
-      footerTextCN: env.DIBUCN || "IP SENTINEL · 玩偶学长"
+      footerTextCN: env.DIBUCN || "IP SENTINEL · Kevin"
     };
 
     // === PWA 配置: manifest.json ===
