@@ -1,45 +1,28 @@
 /**
  * IP SENTINEL - Cloudflare Worker
  * 玩偶学长 (DollSenior) 定制版
- * 支持 Cloudflare 环境变量配置 (Env Variables)
  */
 
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     
-    // === 1. 从 Cloudflare 环境变量读取配置 (没有设置变量则使用默认值) ===
-    // 变量名已简化: TITLE, GITHUB, NAME, NAMECN, SHORT, SHORTCN, DIBUEN, DIBUCN
+    // === 1. 从 Cloudflare 环境变量读取配置 ===
     const config = {
-      // 网页标题
       pageTitle: env.TITLE || "IP SENTINEL | DollSenior",
-      
-      // GitHub 仓库链接 (默认使用你提供的链接)
       githubRepo: env.GITHUB || "https://github.com/wanouxuezhang/ipSentinel",
-      
-      // 英文名称 (显示在副标题)
       ownerName: env.NAME || "DollSenior",
-      
-      // 中文名称 (显示在副标题)
       ownerNameCN: env.NAMECN || "玩偶学长",
-      
-      // 英文简称 (显示在连接状态)
       ownerShort: env.SHORT || "DollSenior",
-      
-      // 中文简称 (显示在连接状态)
       ownerShortCN: env.SHORTCN || "玩偶🧸",
-      
-      // 底部文字 (英文)
       footerText: env.DIBUEN || "IP SENTINEL · DollSenior Edition",
-      
-      // 底部文字 (中文)
       footerTextCN: env.DIBUCN || "IP SENTINEL · 玩偶学长"
     };
 
     // === PWA 配置: manifest.json ===
     if (url.pathname === "/manifest.json") {
-      const manifest = {
-        "name": config.pageTitle, // 动态使用配置的标题
+      return new Response(JSON.stringify({
+        "name": config.pageTitle,
         "short_name": "IP Check",
         "start_url": "/",
         "display": "standalone",
@@ -53,22 +36,13 @@ export default {
             "sizes": "any"
           }
         ]
-      };
-      return new Response(JSON.stringify(manifest), {
-        headers: { "content-type": "application/json" }
-      });
+      }), { headers: { "content-type": "application/json" } });
     }
 
     // === PWA 配置: sw.js ===
     if (url.pathname === "/sw.js") {
-      const swCode = `
-        self.addEventListener('install', (e) => { self.skipWaiting(); });
-        self.addEventListener('activate', (e) => { e.waitUntil(self.clients.claim()); });
-        self.addEventListener('fetch', (e) => { /* No cache */ });
-      `;
-      return new Response(swCode, {
-        headers: { "content-type": "application/javascript" }
-      });
+      return new Response(`self.addEventListener('install',e=>self.skipWaiting());self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()));self.addEventListener('fetch',e=>{});`, 
+        { headers: { "content-type": "application/javascript" } });
     }
 
     // === 获取 IP 数据 ===
@@ -93,7 +67,6 @@ export default {
       userAgent: headers.get("user-agent") || "Unknown"
     };
 
-    // 将 config 传递给 renderHtml
     return new Response(renderHtml(initData, config), {
       headers: {
         'content-type': 'text/html;charset=UTF-8',
@@ -104,6 +77,7 @@ export default {
 };
 
 function renderHtml(initData, config) {
+  // 注意：HTML 中的反引号 ` 和 ${} 必须转义
   return `
 <!DOCTYPE html>
 <html lang="zh-CN" class="dark">
@@ -111,7 +85,6 @@ function renderHtml(initData, config) {
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>${config.pageTitle}</title>
-    
     <meta name="theme-color" content="#020617" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -126,7 +99,6 @@ function renderHtml(initData, config) {
 
     <script>
       window.CF_DATA = ${JSON.stringify(initData)};
-      // 将后端读取到的 config 注入到前端 window 对象中
       window.SITE_CONFIG = ${JSON.stringify(config)};
       
       if ('serviceWorker' in navigator) {
@@ -182,7 +154,12 @@ function renderHtml(initData, config) {
           ipQuality: "IP评分", proxyDetect: "代理检测", riskFound: "已开启代理", clean: "未检测到", score: "分",
           viewLargeMap: "查看大图", webrtc: "WebRTC 隐私", webrtcLeak: "泄露", webrtcSafe: "安全",
           device: "设备信息", browser: "浏览器", os: "系统",
-          starMe: "在 GitHub 点赞"
+          starMe: "在 GitHub 点赞",
+          // 新增胶囊属性
+          type: "IP类型", idc: "IDC机房", broadband: "家庭宽带",
+          native: "原生IP", broadcast: "广播IP",
+          shared: "共享人数", multi: "多人", low: "1-10",
+          riskScore: "IP评分"
         },
         en: {
           title: "IP SENTINEL", 
@@ -199,7 +176,12 @@ function renderHtml(initData, config) {
           ipQuality: "IP Score", proxyDetect: "Proxy Detect", riskFound: "Proxy Enabled", clean: "No Proxy", score: "Score",
           viewLargeMap: "View Full Map", webrtc: "WebRTC Privacy", webrtcLeak: "Leak Detected", webrtcSafe: "Safe",
           device: "Device Info", browser: "Browser", os: "OS",
-          starMe: "Star on GitHub"
+          starMe: "Star on GitHub",
+          // Capsules
+          type: "Type", idc: "Data Center", broadband: "Residential",
+          native: "Native IP", broadcast: "Broadcast",
+          shared: "Users", multi: "High", low: "1-10",
+          riskScore: "IP Score"
         }
       };
 
@@ -275,6 +257,34 @@ function renderHtml(initData, config) {
         </div>
       );
 
+      const AttributeItem = ({ label, value, colorClass, score }) => (
+        <div className="flex items-center text-xs h-6 overflow-hidden rounded border border-slate-700/50">
+            <div className="px-2 h-full flex items-center bg-slate-800 text-slate-400 font-medium whitespace-nowrap border-r border-slate-700/50 z-10">
+                {label}
+            </div>
+            {/* 如果传入了 score，则渲染进度条模式，否则保持全填充模式 */}
+            <div className="relative flex-grow h-full bg-slate-900/50 flex items-center justify-center">
+                {score !== undefined ? (
+                    <>
+                        {/* 动态进度条背景 */}
+                        <div 
+                            className={\`absolute left-0 top-0 h-full \${colorClass} opacity-80 transition-all duration-1000 ease-out\`} 
+                            style={{ width: \`\${score}%\` }}
+                        ></div>
+                        {/* 文字绝对居中，确保在进度条上方 */}
+                        <div className="relative z-10 text-white font-bold drop-shadow-md px-1">
+                            {value}
+                        </div>
+                    </>
+                ) : (
+                    <div className={\`w-full h-full flex items-center justify-center text-white font-bold \${colorClass}\`}>
+                        {value}
+                    </div>
+                )}
+            </div>
+        </div>
+      );
+
       const WebRTCCard = ({ t }) => {
          const [ip, setIp] = useState(null);
          const [status, setStatus] = useState('checking'); 
@@ -335,7 +345,6 @@ function renderHtml(initData, config) {
 
       const MainIpCard = ({ data, t, riskData }) => {
         const [copied, setCopied] = useState(false);
-        const [isLocalHidden, setIsLocalHidden] = useState(false);
         const [isChinaHidden, setIsChinaHidden] = useState(false);
         const [domesticInfo, setDomesticInfo] = useState({ ip: "Loading...", city: "" }); 
         const isCN = data.country === "CN";
@@ -424,23 +433,48 @@ function renderHtml(initData, config) {
             return trimmed.replace(/(\d+)$/, '***');
         };
         
+        // === 核心数据处理 (回归纯净版评分算法) ===
+        // 从 riskData 提取布尔值
         const { is_vpn, is_proxy, is_tor, is_datacenter, is_abuser, is_bot } = riskData || {};
-        const hasRisk = is_vpn || is_proxy || is_tor || is_datacenter || is_abuser || is_bot;
         
+        // 1. IP 类型
+        const ipType = is_datacenter ? t.idc : t.broadband;
+        const ipTypeColor = is_datacenter ? "bg-red-500" : "bg-green-500";
+
+        // 2. IP 评分 (原生算法：100分起扣)
         const calculateScore = () => {
-           if (!riskData) return null;
-           let score = 100;
-           if (is_vpn) score -= 20; if (is_proxy) score -= 20; if (is_tor) score -= 40;
-           if (is_datacenter) score -= 15; if (is_abuser) score -= 30; if (is_bot) score -= 20;
-           return Math.max(0, score);
+           if (!riskData) return null; // 数据未加载时返回 null
+           let s = 100;
+           if (is_vpn) s -= 20;
+           if (is_proxy) s -= 20;
+           if (is_tor) s -= 40;
+           if (is_datacenter) s -= 15;
+           if (is_abuser) s -= 30;
+           if (is_bot) s -= 20;
+           return Math.max(0, s);
         };
         const score = calculateScore();
-        const scoreColor = score > 80 ? 'text-neon-green' : score > 50 ? 'text-yellow-400' : 'text-neon-red';
-        const barColor = score > 80 ? 'bg-neon-green' : score > 50 ? 'bg-yellow-400' : 'bg-neon-red';
+        
+        // 评分颜色逻辑：>80 绿色, >50 黄色, 其他 红色
+        let scoreColor = "bg-red-500";
+        if (score > 80) scoreColor = "bg-green-500"; // 原版逻辑 neon-green
+        else if (score > 50) scoreColor = "bg-yellow-500";
+        
+        // 3. 原生 IP 判断
+        const asnCountry = riskData?.asn?.country;
+        const isNative = asnCountry && data.country ? (asnCountry === data.country) : true;
+        const nativeLabel = isNative ? t.native : t.broadcast;
+        const nativeColor = isNative ? "bg-green-500" : "bg-yellow-500";
+
+        // 4. 共享人数 (精简文案)
+        const isShared = is_vpn || is_proxy || is_tor;
+        const sharedLabel = isShared ? t.multi : t.low;
+        const sharedColor = isShared ? "bg-red-500" : "bg-green-500";
 
         return (
-          <div className="glass p-3 rounded-2xl relative overflow-hidden border-t-4 border-neon-cyan shadow-2xl shadow-cyan-900/10 group flex flex-col h-full">
-            <div className="flex justify-between items-center mb-2 z-10 relative flex-shrink-0 flex-wrap gap-2">
+          <div className="glass p-4 rounded-2xl relative overflow-hidden border-t-4 border-neon-cyan shadow-2xl shadow-cyan-900/10 flex flex-col h-full">
+            {/* 顶部：当前 IP 连接状态 */}
+            <div className="flex justify-between items-center mb-4 z-10 relative flex-shrink-0 flex-wrap gap-2">
                   <div className="flex items-center gap-2 flex-wrap">
                       <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-900/30 text-cyan-400 border border-cyan-800">{t.currentConnection}</span>
                       <div className="flex items-center gap-2 px-2 py-0.5 rounded bg-red-900/20 border border-red-900/30 text-[10px]">
@@ -468,7 +502,8 @@ function renderHtml(initData, config) {
                   )}
             </div>
 
-            <div className="relative w-full min-h-[7rem] h-auto rounded-lg overflow-hidden border border-slate-700/50 mb-2 group-map relative z-0">
+            {/* 中间：地图与主要信息 */}
+            <div className="relative w-full min-h-[7rem] h-auto rounded-lg overflow-hidden border border-slate-700/50 mb-4 group-map relative z-0">
                   {isCN ? (
                     <div className="w-full h-full bg-slate-800/50 p-4">
                         <div className="grid grid-cols-2 md:grid-cols-12 gap-3 md:gap-4 h-full items-center">
@@ -502,16 +537,9 @@ function renderHtml(initData, config) {
                     <>
                       <div className="absolute bottom-2 left-2 z-20 flex items-center gap-2 bg-slate-900/80 backdrop-blur-sm border border-slate-700/50 rounded px-2 py-1 shadow-lg">
                           <span className="text-[10px] text-slate-400 font-bold uppercase">{t.localIp}</span>
-                          <span className="text-xs font-mono font-bold text-white tracking-tight">{isLocalHidden ? maskIp(data.ip) : data.ip}</span>
-                          <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); copyText(data.ip, () => { setCopied(true); setTimeout(() => setCopied(false), 2000); }); }} className="text-slate-400 hover:text-white transition-colors ml-1" title={t.copy}>
-                              {copied ? <Icons.Check className="w-3 h-3 text-neon-green" /> : <Icons.Copy className="w-3 h-3" />}
-                          </button>
-                          <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsLocalHidden(!isLocalHidden); }} className="text-slate-400 hover:text-white transition-colors" title={isLocalHidden ? t.show : t.hide}>
-                              {isLocalHidden ? <Icons.EyeOff className="w-3 h-3" /> : <Icons.Eye className="w-3 h-3" />}
-                          </button>
+                          <span className="text-xs font-mono font-bold text-white tracking-tight">{domesticInfo.ip !== "Loading..." && isChinaHidden ? maskIp(data.ip) : data.ip}</span>
                       </div>
-                      <a href={"https://www.google.com/maps?q=" + data.lat + "," + data.lon} target="_blank" rel="noreferrer" className="absolute inset-0 z-10"></a>
-                      <iframe 
+                        <iframe 
                         src={"https://maps.google.com/maps?q=" + data.lat + "," + data.lon + "&z=7&output=embed"}
                         className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity duration-500 map-color"
                         frameBorder="0"
@@ -522,31 +550,26 @@ function renderHtml(initData, config) {
                   )}
             </div>
 
-            <div className="mt-auto relative z-10 flex-shrink-0 bg-slate-900/40 rounded-lg border border-slate-800 p-3">
-                  <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-4 flex-grow">
-                          <div className="flex items-center gap-2 flex-shrink-0">
-                             <span className="text-xs text-slate-400 font-bold whitespace-nowrap">{t.ipQuality}:</span>
-                             <div className="flex items-baseline gap-0.5">
-                                 {score !== null ? (
-                                    <span className={"text-lg font-bold font-mono " + scoreColor}>{score}</span>
-                                 ) : (
-                                    <span className="text-sm text-slate-500 animate-pulse">{t.checking}</span>
-                                 )}
-                             </div>
-                          </div>
-                          <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden flex-grow opacity-80">
-                             <div className={"h-full rounded-full transition-all duration-500 " + barColor} style={{ width: score ? score + "%" : "0%" }}></div>
-                          </div>
+            {/* 底部：属性展示栏 */}
+            <div className="mt-auto relative z-10 flex-shrink-0">
+                  {riskData ? (
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                        <AttributeItem label={t.type} value={ipType} colorClass={ipTypeColor} />
+                        {/* 修正了这一行，使用 t.score 来动态显示 "分" 或 "Score" */}
+                        <AttributeItem 
+                            label={t.riskScore} 
+                            value={score !== null ? \`\${score} \${t.score}\` : "..."} 
+                            colorClass={scoreColor} 
+                            score={score !== null ? score : 0} 
+                        />
+                        <AttributeItem label={t.native} value={nativeLabel} colorClass={nativeColor} />
+                        <AttributeItem label={t.shared} value={sharedLabel} colorClass={sharedColor} />
                       </div>
-
-                      <div className="flex items-center gap-1.5 flex-shrink-0 pl-2 border-l border-slate-700">
-                          <span className="text-xs text-slate-400 font-medium">{t.proxyDetect}:</span>
-                          <span className={"text-xs font-bold truncate " + (hasRisk ? "text-neon-red" : "text-neon-green")}>
-                             {hasRisk ? t.riskFound : t.clean}
-                          </span>
+                  ) : (
+                      <div className="text-center text-xs text-slate-500 animate-pulse py-2">
+                          正在加载 IP 深度属性...
                       </div>
-                  </div>
+                  )}
             </div>
           </div>
         );
@@ -700,15 +723,15 @@ function renderHtml(initData, config) {
               const noCacheUrl = url + (url.includes('?') ? '&' : '?') + 't=' + Date.now();
               const options = { referrerPolicy: "no-referrer", cache: "no-store", mode: 'cors' };
               if (isCN) {
-                 // Removed External CN Logic
+                  // Removed External CN Logic
               } else {
                   try {
                       const res = await fetch(noCacheUrl, options);
                       if (!res.ok) throw new Error("Network Err");
                       const json = await res.json();
                       if (url.includes('ping0.cc')) {
-                         setData({ ip: json.ip || json.query || "N/A", loc: json.location || json.country_code || json.country || "", isp: json.isp || json.org || "" });
-                         return;
+                          setData({ ip: json.ip || json.query || "N/A", loc: json.location || json.country_code || json.country || "", isp: json.isp || json.org || "" });
+                          return;
                       }
                       setData({
                         ip: json.ip || json.query || "N/A",
@@ -746,12 +769,12 @@ function renderHtml(initData, config) {
             <div className="flex items-center gap-2 cursor-pointer group">
                <p className={"text-lg font-mono font-bold truncate transition-colors flex-grow " + (data.ip === "Failed" || data.ip === t.checkNetwork ? "text-red-500" : "text-white hover:text-cyan-400")}>{getDisplayIp(data.ip)}</p>
                <div className="flex gap-1">
-                  {data.ip !== "Loading..." && data.ip !== "Failed" && (
-                    <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsHidden(!isHidden); }} className="p-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"><Icons.EyeOff className="w-3.5 h-3.5" /></button>
-                  )}
-                  {(!hasError && data.ip !== "Loading..." && (
-                    <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); copyText(data.ip, () => { setCopied(true); setTimeout(() => setCopied(false), 2000); }); }} className="p-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"><Icons.Copy className="w-3.5 h-3.5" /></button>
-                  ))}
+                 {data.ip !== "Loading..." && data.ip !== "Failed" && (
+                   <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsHidden(!isHidden); }} className="p-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"><Icons.EyeOff className="w-3.5 h-3.5" /></button>
+                 )}
+                 {(!hasError && data.ip !== "Loading..." && (
+                   <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); copyText(data.ip, () => { setCopied(true); setTimeout(() => setCopied(false), 2000); }); }} className="p-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"><Icons.Copy className="w-3.5 h-3.5" /></button>
+                 ))}
                </div>
             </div>
             <p className="text-xs text-slate-500 mt-1 truncate">{data.isp}</p>
@@ -803,7 +826,7 @@ function renderHtml(initData, config) {
 
       const App = () => {
         const [data, setData] = useState(window.CF_DATA || null);
-        const [lang, setLang] = useState('en');
+        const [lang, setLang] = useState('zh');
         const [hostname, setHostname] = useState('Scanning...');
         const [riskData, setRiskData] = useState(null);
         const t = TRANSLATIONS[lang];
